@@ -1,0 +1,56 @@
+Go language notes
+    go is programming lamguage which is famous for its concureency, simplicity
+
+steps:
+    go mod init <modulename>
+    go get -> to install any package
+    Any other file import -> folder need to check & package
+     need to be same and exported function need to be start with capital Letter
+
+Http server : 
+    General
+        -> we are using FIBER HTTP -> fast
+        -> create a new instance - fiber.New()
+        -> use of any middleware - import & use 
+            eg: if server is created in app means app.Use(cors.New())
+    Routes:
+        -> app.<Method>("<apiPath>",<function-NAME>)
+            eg:app.Get("/",getTodo)
+               app.Post("/",createTodo)
+               app.Put("/",updateTodo)
+               app.Delete("/",deleteTodo)
+    Listen:
+        -> open any port 
+            eg: app.Listen(":7000")
+
+Imports Statement:
+    Always that need to install by go get
+    In main page always starts with package main
+    -> if you are importing anything that must be used always inside " "
+        eg: import (
+            "fmt"
+            "<any other import"
+        )
+        
+Global Variable:
+    Must be declare outside main func 
+    This will be used by every function monstly used for db, cache 
+        eg: var (
+            client *mongo.Client
+            redisClient *redis.Client
+        )
+
+Http sever accessing data from Request
+    Here "c" refers to fiber instance
+    Query Params -> c.Query("<QueryParams>")
+        eg: queryValue := c.Query("projectID")
+    Header -> c.Get("<HeaderName>")
+        eg: var header = c.Get("authorization")
+    Body -> store that in a variable & parse that data by using struct
+        eg: reqBodyData := new(<structName>)
+        c.BodyParser(reqBodyData)
+
+Connection:
+    MongoDB -> refer to db -> dbconnection.go
+    Redis -> refers to redise -> redis.go
+
