@@ -1,0 +1,52 @@
+Go keywords-overall 25
+    -> simplicity, concurrency
+Installtion:
+    -> from go official website 
+    -> To check wheather it is installed or not -> terminal - Go
+SYNTAX:
+    -> Go file should contain three main things
+        -> Package
+        -> import
+        -> Main function
+VARIABLE DECLARATIONS:
+    var <variable Name> <datatype>
+    <variable Name> := <value>
+CONDITIONAL STATEMENTS:
+    if else SYNTAX
+        if <condition> {
+            //logic
+        } else {
+            // else logic
+        }
+    COMPARISONS OPERATOR
+    == -> EQUAL TO     != NOT EQUAL TO 
+SWITCH CASE:
+    SWITCH <VARIABLE-NAME>{
+        case <1> :
+        //logic
+         case <2> :
+        //logic
+        default :
+        //logic
+    }
+LOOPS
+    For loop is single loop which is used for everything
+    for i:= 0;i<=5;i++{
+        //logic
+    }
+    LOOPS FOR ARRAYS || SLICES
+    for _, n := range <Name of arr> { -> here _ -> index , n -> value of that index
+        // here we will print only n
+    }
+ARRAYS:
+    -> used to store the continuous Variable && Length can't be changed
+    syntax:   var <ARRAY-NAME> [ <LENGTH OF ARRAY] <DATA-TYPE>
+    decalration <ARRAY-NAME> = [ ... ] <DATA-TYPE> { "VALUE","VALUE","VALUE"}
+    // in single line
+    var <ARRAY-NAME> []<DATA-TYPE> = []<DATA-TYPE> { "VALUE1" "VALUE2"}
+SLICES:
+    -> used to create dynamic ARRAY
+    -> same syntax as array but length we will not given 
+    -> var <SLICE-NAME> [ EMPTY ]<DATA-TYPE>
+    -> adding data into slice - <SLICE-NAME> = append(<slicename> , value)
+    -> 2 important func -> len, cap
