@@ -54,3 +54,11 @@ Connection:
     MongoDB -> refer to db -> dbconnection.go
     Redis -> refers to redise -> redis.go
 
+In redis we need to use Marshal & Unmarshal the data while setting & getting the data 
+    Import
+        encoding/json
+    Marshal -> JSON ------ STRING
+        syntax: json.Marshal(<variable>)
+    Unmarshal -> STRING ------ JSON
+        syntax: json.Unmarshal([]byte(<variable which string there>), &(<new variable which json data need to store>))
+        json.Unmarshal([]byte(getDataFromRedis), &redisdata)
