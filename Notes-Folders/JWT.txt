@@ -1,0 +1,19 @@
+import statement :
+    github.com/golang-jwt/jwt/v5
+Adding Global variable :
+    jwt-secret-key
+
+Steps to be followed to generate token:
+    1. create MapClaims { }
+    2. create NewWithClaims ( <algo>, token details) 
+    3. create SignedString ([]byte <jwt-secret-key>) 
+	
+    eg:
+    tokenExpires := time.Hour *24
+	claims:= jwt.MapClaims{
+		"username":reqUser.UserName, 
+		"password":reqUser.Password,
+		"exp":time.Now().Add(tokenExpires).Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256,claims)
+	resToken,err := token.SignedString([]byte(jwt_secret_key))

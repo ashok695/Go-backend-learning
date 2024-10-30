@@ -62,3 +62,7 @@ In redis we need to use Marshal & Unmarshal the data while setting & getting the
     Unmarshal -> STRING ------ JSON
         syntax: json.Unmarshal([]byte(<variable which string there>), &(<new variable which json data need to store>))
         json.Unmarshal([]byte(getDataFromRedis), &redisdata)
+
+
+
+
