@@ -6,7 +6,7 @@ import (
 	"context"
     "fmt"
 )
-var client *mongo.Client
+var (client *mongo.Client)
 func DbCon()(*mongo.Client,error){
 	fmt.Println("hello from dbconnection")
 	MONGODBURL := "mongodb://localhost:27017/"
