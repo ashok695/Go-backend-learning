@@ -203,6 +203,7 @@ func getData(c *fiber.Ctx)error{
             }
         }
     }
+	fmt.Println("userData",assignedToDetails)
 	return c.JSON(
 		fiber.Map{
 			"status":200,
