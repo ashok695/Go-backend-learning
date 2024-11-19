@@ -9,7 +9,7 @@ import(
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"context"
 	"time"
-	"reflect"
+	// "reflect"
 )
 var client *mongo.Client
 func createMapForUserAndStatus(userData []AssignedToStruct, statusData []StatusStruct)Maps{
@@ -26,8 +26,8 @@ func createMapForUserAndStatus(userData []AssignedToStruct, statusData []StatusS
 		StatusMap : statusMap,
 	}
 }
-func createMapForRWT(taskTypeData []TaskTypeStrcut) map[primitive.ObjectID]TaskTypeStrcut{
-	taskTypeMap:= make(map[primitive.ObjectID]TaskTypeStrcut)
+func createMapForRWT(taskTypeData []TaskTypeStruct) map[primitive.ObjectID]TaskTypeStruct{
+	taskTypeMap:= make(map[primitive.ObjectID]TaskTypeStruct)
 	for _,taskType:= range taskTypeData {
 		taskTypeMap[taskType.ID] = taskType
 	}
@@ -144,21 +144,21 @@ func EndVariance(task *TaskStruct){
 		}
 	}
 }
-func AssignTaskType(task *TaskStruct,taskTypeMap map[primitive.ObjectID]TaskTypeStrcut){
-	fmt.Println("Hello")
-	fmt.Println("type of ", reflect.TypeOf(task.TaskType))
-		if taskSlice,ok := task.TaskType.(primitive.A);ok{
-			if len(taskSlice) > 0 {
-				if  tasktype,ok := taskSlice[0].(primitive.ObjectID);ok {
-					fmt.Println("okkkkkkkk")
-				if hi,exists := taskTypeMap[tasktype];exists{
-					fmt.Println("is exists")
-					task.TaskType = hi
-				}
-				}
-			}
-		}
-}
+// func AssignTaskType(task *TaskStruct,taskTypeMap map[primitive.ObjectID]TaskTypeStruct){
+// 	fmt.Println("Hello")
+// 	fmt.Println("type of ", reflect.TypeOf(task.TaskType))
+// 		if taskSlice,ok := task.TaskType.(primitive.A);ok{
+// 			if len(taskSlice) > 0 {
+// 				if  tasktype,ok := taskSlice[0].(primitive.ObjectID);ok {
+// 					fmt.Println("okkkkkkkk")
+// 				if hi,exists := taskTypeMap[tasktype];exists{
+// 					fmt.Println("is exists")
+// 					task.TaskType = hi
+// 				}
+// 				}
+// 			}
+// 		}
+// }
 // func AssignWorkStream(task *TaskStruct){
 // 	if len(task.workstream) > 0 {
 
@@ -229,9 +229,10 @@ type Variance struct {
 	Parameter string
 	Type string
 }
-type TaskTypeStrcut struct {
+type RWTStruct struct {
 	ID primitive.ObjectID `json:"_id" bson:"_id"`
 	Name string `json:"name" bson:"name"`
+	Type string `json:"__type" bson:"__type"`
 }
 func getData(c *fiber.Ctx)error{
 	ctx:= context.Background()
@@ -239,13 +240,16 @@ func getData(c *fiber.Ctx)error{
 	var taskData []TaskStruct
 	var userData []AssignedToStruct
 	var statusData []StatusStruct
-	var taskTypeData []TaskTypeStrcut
+	var taskTypeData []RWTStruct
+	var roleTypeData []RWTStruct
+	var wsType []RWTStruct 
 
 	subPhaseDBDetails:= client.Database("google-pt").Collection("kt_m_subphases")
 	taskDBDetails:= client.Database("google-pt").Collection("kt_t_taskLists")
 	userDBDetails:= client.Database("google-pt").Collection("kt_m_users")
 	statusDBDetails:= client.Database("google-pt").Collection("kt_m_status")
-	taskTypeDBDetails:= client.Database("google-pt").Collection("kt_m_types")
+	rwtDBDetails:= client.Database("google-pt").Collection("kt_m_types")
+
 
 	subPhasePipeline := mongo.Pipeline{
 		{{"$project",bson.D{{"_id",1},{"subPhaseName",1},{"__type",1},{"orderID",1}}}},
@@ -261,17 +265,22 @@ func getData(c *fiber.Ctx)error{
 		{{"$match",bson.D{{"workItem","Task"}}}},
 		{{"$project",bson.D{{"_id",1},{"category",1},{"status",1}}}},
 	}
-	taskTypePipeline := mongo.Pipeline{
-		{{"$match",bson.D{{"__type","tasktype"}}}},
-		{{"$project",bson.D{{"_id",1},{"name",1}}}},
+	rwtPipeline := mongo.Pipeline{
+		{{"$match", bson.D{
+			{"$or", bson.A{
+				bson.D{{"__type", "role"}},
+				bson.D{{"__type", "tasktype"}},
+				bson.D{{"__type","workstream"}},
+			}},
+		}}},
+		{{"$project",bson.D{{"_id",1},{"name",1},{"__type",1}}}},
 	}
 
 	subPhaseChan := make(chan error)
 	taskChan := make(chan error)
 	userChan := make(chan error)
 	statusChan := make(chan error)
-	taskTypeChan := make(chan error)
-
+	rwtChan := make(chan error)
 	go func(){
 		cursor,err := subPhaseDBDetails.Aggregate(ctx,subPhasePipeline)
 		if err != nil {
@@ -350,24 +359,40 @@ func getData(c *fiber.Ctx)error{
 		}
 		statusChan <- nil
 	} ()
-	go func(){
-		cursor,err := taskTypeDBDetails.Aggregate(ctx,taskTypePipeline)
+	go func() {
+		role := []RWTStruct{}
+		ttype := []RWTStruct{}
+		wstream := []RWTStruct{}
+		cursor, err := rwtDBDetails.Aggregate(ctx, rwtPipeline)
 		if err != nil {
 			fmt.Println("Error in Getting Phase Data")
-			taskTypeChan <- fmt.Errorf("error in getting Phase Data %v",err)
+			rwtChan <- fmt.Errorf("error in getting Phase Data: %v", err)
+			return
 		}
 		defer cursor.Close(ctx)
-		for cursor.Next(ctx){
-			var data TaskTypeStrcut
-			decodedError := cursor.Decode(&data)
-			if decodedError != nil {
-				fmt.Println("error in decoding phase error data")
-				taskTypeChan <- fmt.Errorf("Error in decoding subphase data %v",decodedError)
+		for cursor.Next(ctx) {
+			var data RWTStruct
+			if err := cursor.Decode(&data); err != nil {
+				fmt.Println("Error in decoding phase error data")
+				rwtChan <- fmt.Errorf("error in decoding subphase data: %v", err)
+				return
 			}
-			taskTypeData= append(taskTypeData,data)
+	
+			// Categorize data based on its Type
+			switch data.Type {
+			case "tasktype":
+				ttype = append(ttype, data)
+			case "role":
+				role = append(role, data)
+			case "workstream":
+				wstream = append(wstream, data)
+			}
 		}
-		taskTypeChan <- nil
-	} ()
+		taskTypeData = ttype
+		roleTypeData = role
+		wsType = wstream
+		rwtChan <- nil
+	}()
 
 	if err := <-taskChan; err != nil{
 		fmt.Println("Error in suphase data")
@@ -381,9 +406,6 @@ func getData(c *fiber.Ctx)error{
 	if err := <-statusChan; err != nil{
 		fmt.Println("Error in suphase data")
 	}
-	if err := <-taskTypeChan; err != nil{
-		fmt.Println("Error in suphase data")
-	}
 	maps:=createMapForUserAndStatus(userData,statusData)
 	mapsForRWT := createMapForRWT(taskTypeData)
 	userMap:=maps.UserMap
@@ -393,14 +415,14 @@ func getData(c *fiber.Ctx)error{
 		assignOwnerAndStatus(task,userMap,statusMap)
 		FindStartVariance(task)
 		EndVariance(task)
-		AssignTaskType(task,mapsForRWT)
+		// AssignTaskType(task,mapsForRWT)
 	}
 	return c.JSON(fiber.Map{
 		"status":200,
 		"msg":"Hello From Server",
-		// "userMap":userMap,
-		// "statusMap":statusMap,
-		"data":taskData,
+		"roleTypeData":roleTypeData,
+		"taskTypeData":taskTypeData,
+		"wsType":wsType,
 
 	})
 }
