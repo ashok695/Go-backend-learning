@@ -82,10 +82,10 @@ func getData(c *fiber.Ctx)error{
 	var assignedToDetails []AssignedToDetails
 	var statusDetails []StatusDetails
 
-	boardDBDetails := client.Database("kternai-tp0").Collection("kt_m_boards")
-	taskDBDetails := client.Database("kternai-tp0").Collection("kt_t_taskLists")
-	assignedToDBDetails :=  client.Database("kternai-tp0").Collection("kt_m_users")
-	statusDBDetails := client.Database("kternai-tp0").Collection("kt_m_status")
+	boardDBDetails := client.Database("kaartechnologies-mql").Collection("kt_m_boards")
+	taskDBDetails := client.Database("kaartechnologies-mql").Collection("kt_t_taskLists")
+	assignedToDBDetails :=  client.Database("kaartechnologies-mql").Collection("kt_m_users")
+	statusDBDetails := client.Database("kaartechnologies-mql").Collection("kt_m_status")
 
 	boardChan := make(chan error)
 	taskChan := make(chan error)
@@ -168,7 +168,7 @@ func getData(c *fiber.Ctx)error{
 			}
 			taskDetails = append(taskDetails,data)
 		}
-		fmt.Println("Length od doc:",len(taskDetails))
+		// fmt.Println("Length od doc:",len(taskDetails))
 		taskChan <- nil 
 	} ()
 	go func (){
@@ -203,7 +203,7 @@ func getData(c *fiber.Ctx)error{
             }
         }
     }
-	fmt.Println("userData",assignedToDetails)
+	// fmt.Println("userData",assignedToDetails)
 	return c.JSON(
 		fiber.Map{
 			"status":200,

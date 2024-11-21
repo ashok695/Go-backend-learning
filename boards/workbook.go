@@ -9,7 +9,11 @@ import(
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"context"
 	"time"
+	"net/http"
+    _ "net/http/pprof" 
+	"log"
 	// "reflect"
+	"sort"
 )
 var client *mongo.Client
 func createMapForUserAndStatus(userData []AssignedToStruct, statusData []StatusStruct)Maps{
@@ -26,12 +30,12 @@ func createMapForUserAndStatus(userData []AssignedToStruct, statusData []StatusS
 		StatusMap : statusMap,
 	}
 }
-func createMapForRWT(taskTypeData []TaskTypeStruct) map[primitive.ObjectID]TaskTypeStruct{
-	taskTypeMap:= make(map[primitive.ObjectID]TaskTypeStruct)
-	for _,taskType:= range taskTypeData {
-		taskTypeMap[taskType.ID] = taskType
+func createMapForRWT(rwtData []RWTStruct) map[primitive.ObjectID]RWTStruct{
+	rwtMap:= make(map[primitive.ObjectID]RWTStruct)
+	for _,rwt:= range rwtData {
+		rwtMap[rwt.ID] = rwt
 	}
-	return taskTypeMap
+	return rwtMap
 }
 func assignOwnerAndStatus(task *TaskStruct, userMap map[primitive.ObjectID]AssignedToStruct, statusMap map[primitive.ObjectID]StatusStruct){
 	// fmt.Println("task is ",task)
@@ -144,26 +148,42 @@ func EndVariance(task *TaskStruct){
 		}
 	}
 }
-// func AssignTaskType(task *TaskStruct,taskTypeMap map[primitive.ObjectID]TaskTypeStruct){
-// 	fmt.Println("Hello")
-// 	fmt.Println("type of ", reflect.TypeOf(task.TaskType))
-// 		if taskSlice,ok := task.TaskType.(primitive.A);ok{
-// 			if len(taskSlice) > 0 {
-// 				if  tasktype,ok := taskSlice[0].(primitive.ObjectID);ok {
-// 					fmt.Println("okkkkkkkk")
-// 				if hi,exists := taskTypeMap[tasktype];exists{
-// 					fmt.Println("is exists")
-// 					task.TaskType = hi
-// 				}
-// 				}
-// 			}
-// 		}
-// }
-// func AssignWorkStream(task *TaskStruct){
-// 	if len(task.workstream) > 0 {
-
-// 	}
-// }
+func AssignRWTalue(task *TaskStruct,mapsForRWT map[primitive.ObjectID]RWTStruct){
+	// fmt.Println("type of ", reflect.TypeOf(task.TaskType))
+		if taskSlice,ok := task.TaskType.(primitive.A);ok{
+			if len(taskSlice) > 0 {
+				if  tasktype,ok := taskSlice[0].(primitive.ObjectID);ok {
+					
+				if hi,exists := mapsForRWT[tasktype];exists{
+					
+					task.TaskType = hi
+				}
+				}
+			}
+		}
+		if taskSlice,ok := task.Role.(primitive.A);ok{
+			if len(taskSlice) > 0 {
+				if  tasktype,ok := taskSlice[0].(primitive.ObjectID);ok {
+					
+				if hi,exists := mapsForRWT[tasktype];exists{
+					
+					task.TaskType = hi
+				}
+				}
+			}
+		}
+		if taskSlice,ok := task.Workstream.(primitive.A);ok{
+			if len(taskSlice) > 0 {
+				if  tasktype,ok := taskSlice[0].(primitive.ObjectID);ok {
+					
+				if hi,exists := mapsForRWT[tasktype];exists{
+					
+					task.TaskType = hi
+				}
+				}
+			}
+		}
+}
 func main(){
 	ctx:= context.Background()
 	var err error
@@ -181,7 +201,7 @@ func main(){
 	fmt.Println("DB CONNECTION SUC")
 	defer client.Disconnect(ctx)
 	app.Get("/",getData)
-	appPort := app.Listen(":9000")
+	appPort := app.Listen(":6060")
 	if appPort != nil {
 		fmt.Println("Error in Port")
 	}
@@ -234,197 +254,105 @@ type RWTStruct struct {
 	Name string `json:"name" bson:"name"`
 	Type string `json:"__type" bson:"__type"`
 }
-func getData(c *fiber.Ctx)error{
-	ctx:= context.Background()
+func getData(c *fiber.Ctx) error {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil)) // Start the pprof server
+	}()
+	ctx := context.Background()
+
+	// Define slices for data
 	var subPhaseData []SubPhaseStruct
 	var taskData []TaskStruct
 	var userData []AssignedToStruct
 	var statusData []StatusStruct
-	var taskTypeData []RWTStruct
-	var roleTypeData []RWTStruct
-	var wsType []RWTStruct 
+	var rwtData []RWTStruct
 
-	subPhaseDBDetails:= client.Database("google-pt").Collection("kt_m_subphases")
-	taskDBDetails:= client.Database("google-pt").Collection("kt_t_taskLists")
-	userDBDetails:= client.Database("google-pt").Collection("kt_m_users")
-	statusDBDetails:= client.Database("google-pt").Collection("kt_m_status")
-	rwtDBDetails:= client.Database("google-pt").Collection("kt_m_types")
+	// Define collections
+	subPhaseDBDetails := client.Database("kaartechnologies-mql").Collection("kt_m_subphases")
+	taskDBDetails := client.Database("kaartechnologies-mql").Collection("kt_t_taskLists")
+	userDBDetails := client.Database("kaartechnologies-mql").Collection("kt_m_users")
+	statusDBDetails := client.Database("kaartechnologies-mql").Collection("kt_m_status")
+	rwtDBDetails := client.Database("kaartechnologies-mql").Collection("kt_m_types")
 
-
+	// Pipelines
 	subPhasePipeline := mongo.Pipeline{
-		{{"$project",bson.D{{"_id",1},{"subPhaseName",1},{"__type",1},{"orderID",1}}}},
+		{{"$project", bson.D{{"_id", 1}, {"subPhaseName", 1}, {"__type", 1}, {"orderID", 1}}}},
 	}
 	taskPipeline := mongo.Pipeline{
-		{{"$match",bson.D{{"refBoardID",bson.D{{"$exists",false}}},{"skip",false}}}},
-		{{"$project",bson.D{{"_id",1},{"title",1},{"status",1},{"assignedTo",1},{"orderID",1},{"plannedFrom",1},{"plannedTo",1},{"startedOn",1},{"completedOn",1},{"priority",1},{"role",1},{"workstream",1},{"type",1}}}},
+		{{"$match", bson.D{{"refBoardID", bson.D{{"$exists", false}}}, {"skip", false}}}},
+		{{"$project", bson.D{{"_id", 1}, {"title", 1}, {"status", 1}, {"assignedTo", 1}, {"orderID", 1}, {"plannedFrom", 1}, {"plannedTo", 1}, {"startedOn", 1}, {"completedOn", 1}, {"priority", 1}, {"role", 1}, {"workstream", 1}, {"type", 1}}}},
 	}
 	userPipeline := mongo.Pipeline{
-		{{"$project",bson.D{{"_id",1},{"fullName",1},{"email",1}}}},
+		{{"$project", bson.D{{"_id", 1}, {"fullName", 1}, {"email", 1}}}},
 	}
 	statusPipeline := mongo.Pipeline{
-		{{"$match",bson.D{{"workItem","Task"}}}},
-		{{"$project",bson.D{{"_id",1},{"category",1},{"status",1}}}},
+		{{"$match", bson.D{{"workItem", "Task"}}}},
+		{{"$project", bson.D{{"_id", 1}, {"category", 1}, {"status", 1}}}},
 	}
 	rwtPipeline := mongo.Pipeline{
 		{{"$match", bson.D{
 			{"$or", bson.A{
 				bson.D{{"__type", "role"}},
 				bson.D{{"__type", "tasktype"}},
-				bson.D{{"__type","workstream"}},
+				bson.D{{"__type", "workstream"}},
 			}},
 		}}},
-		{{"$project",bson.D{{"_id",1},{"name",1},{"__type",1}}}},
+		{{"$project", bson.D{{"_id", 1}, {"name", 1}, {"__type", 1}}}},
 	}
 
-	subPhaseChan := make(chan error)
-	taskChan := make(chan error)
-	userChan := make(chan error)
-	statusChan := make(chan error)
-	rwtChan := make(chan error)
-	go func(){
-		cursor,err := subPhaseDBDetails.Aggregate(ctx,subPhasePipeline)
-		if err != nil {
-			fmt.Println("Error in Getting Phase Data")
-			subPhaseChan <- fmt.Errorf("error in getting Phase Data %v",err)
-		}
-		defer cursor.Close(ctx)
-		for cursor.Next(ctx){
-			var data SubPhaseStruct
-			decodedError := cursor.Decode(&data)
-			if decodedError != nil {
-				fmt.Println("error in decoding phase error data")
-				subPhaseChan <- fmt.Errorf("Error in decoding subphase data %v",decodedError)
-			}
-			subPhaseData= append(subPhaseData,data)
-		}
-		subPhaseChan <- nil
-	} ()
-	go func(){
-		cursor,err := taskDBDetails.Aggregate(ctx,taskPipeline)
-		if err != nil {
-			fmt.Println("Error in Getting Phase Data")
-			taskChan <- fmt.Errorf("error in getting Phase Data %v",err)
-		}
-		defer cursor.Close(ctx)
-		for cursor.Next(ctx){
-			var data TaskStruct
-			decodedError := cursor.Decode(&data)
-			if decodedError != nil {
-				fmt.Println("error in decoding phase error data")
-				taskChan <- fmt.Errorf("Error in decoding subphase data %v",decodedError)
-			}
-			if data.ActualStart == nil {
-				data.ActualStart = ""
-			}
-			if data.ActualEnd == nil {
-				data.ActualEnd = ""
-			}
-			taskData= append(taskData,data)
-		}
-		taskChan <- nil
-	} ()
-	go func(){
-		cursor,err := userDBDetails.Aggregate(ctx,userPipeline)
-		if err != nil {
-			fmt.Println("Error in Getting Phase Data")
-			userChan <- fmt.Errorf("error in getting Phase Data %v",err)
-		}
-		defer cursor.Close(ctx)
-		for cursor.Next(ctx){
-			var data AssignedToStruct
-			decodedError := cursor.Decode(&data)
-			if decodedError != nil {
-				fmt.Println("error in decoding phase error data")
-				userChan <- fmt.Errorf("Error in decoding subphase data %v",decodedError)
-			}
-			userData= append(userData,data)
-		}
-		userChan <- nil
-	} ()
-	go func(){
-		cursor,err := statusDBDetails.Aggregate(ctx,statusPipeline)
-		if err != nil {
-			fmt.Println("Error in Getting Phase Data")
-			statusChan <- fmt.Errorf("error in getting Phase Data %v",err)
-		}
-		defer cursor.Close(ctx)
-		for cursor.Next(ctx){
-			var data StatusStruct
-			decodedError := cursor.Decode(&data)
-			if decodedError != nil {
-				fmt.Println("error in decoding phase error data")
-				statusChan <- fmt.Errorf("Error in decoding subphase data %v",decodedError)
-			}
-			statusData= append(statusData,data)
-		}
-		statusChan <- nil
-	} ()
-	go func() {
-		role := []RWTStruct{}
-		ttype := []RWTStruct{}
-		wstream := []RWTStruct{}
-		cursor, err := rwtDBDetails.Aggregate(ctx, rwtPipeline)
-		if err != nil {
-			fmt.Println("Error in Getting Phase Data")
-			rwtChan <- fmt.Errorf("error in getting Phase Data: %v", err)
-			return
-		}
-		defer cursor.Close(ctx)
-		for cursor.Next(ctx) {
-			var data RWTStruct
-			if err := cursor.Decode(&data); err != nil {
-				fmt.Println("Error in decoding phase error data")
-				rwtChan <- fmt.Errorf("error in decoding subphase data: %v", err)
-				return
-			}
-	
-			// Categorize data based on its Type
-			switch data.Type {
-			case "tasktype":
-				ttype = append(ttype, data)
-			case "role":
-				role = append(role, data)
-			case "workstream":
-				wstream = append(wstream, data)
-			}
-		}
-		taskTypeData = ttype
-		roleTypeData = role
-		wsType = wstream
-		rwtChan <- nil
-	}()
+	// Concurrently fetch data
+	errChan := make(chan error, 5)
 
-	if err := <-taskChan; err != nil{
-		fmt.Println("Error in suphase data")
+	go fetchData(ctx, subPhaseDBDetails, subPhasePipeline, &subPhaseData, errChan)
+	go fetchData(ctx, taskDBDetails, taskPipeline, &taskData, errChan)
+	go fetchData(ctx, userDBDetails, userPipeline, &userData, errChan)
+	go fetchData(ctx, statusDBDetails, statusPipeline, &statusData, errChan)
+	go fetchData(ctx, rwtDBDetails, rwtPipeline, &rwtData, errChan)
+
+	// Wait for all goroutines to complete
+	for i := 0; i < 5; i++ {
+		if err := <-errChan; err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		}
 	}
-	if err := <-subPhaseChan; err != nil{
-		fmt.Println("Error in suphase data")
-	}
-	if err := <-userChan; err != nil{
-		fmt.Println("Error in suphase data")
-	}
-	if err := <-statusChan; err != nil{
-		fmt.Println("Error in suphase data")
-	}
-	maps:=createMapForUserAndStatus(userData,statusData)
-	mapsForRWT := createMapForRWT(taskTypeData)
-	userMap:=maps.UserMap
-	statusMap := maps.StatusMap
+
+	// Create maps for processing
+	maps := createMapForUserAndStatus(userData, statusData)
+	rwtMap := createMapForRWT(rwtData)
+
+	// Process tasks
 	for i := range taskData {
-		task:=&taskData[i]
-		assignOwnerAndStatus(task,userMap,statusMap)
-		FindStartVariance(task)
-		EndVariance(task)
-		// AssignTaskType(task,mapsForRWT)
+		assignOwnerAndStatus(&taskData[i], maps.UserMap, maps.StatusMap)
+		FindStartVariance(&taskData[i])
+		EndVariance(&taskData[i])
+		AssignRWTalue(&taskData[i], rwtMap)
 	}
-	return c.JSON(fiber.Map{
-		"status":200,
-		"msg":"Hello From Server",
-		"roleTypeData":roleTypeData,
-		"taskTypeData":taskTypeData,
-		"wsType":wsType,
-
+	sort.Slice(taskData, func(i, j int) bool {
+		return taskData[i].OrderID < taskData[j].OrderID
 	})
+
+	// Send response
+	return c.JSON(fiber.Map{
+		"tasks":    taskData,
+	})
+}
+
+// fetchData handles database queries and decoding
+func fetchData(ctx context.Context, coll *mongo.Collection, pipeline mongo.Pipeline, target interface{}, errChan chan error) {
+	cursor, err := coll.Aggregate(ctx, pipeline)
+	if err != nil {
+		errChan <- fmt.Errorf("error in fetching data: %v", err)
+		return
+	}
+	defer cursor.Close(ctx)
+
+	err = cursor.All(ctx, target)
+	if err != nil {
+		errChan <- fmt.Errorf("error in decoding data: %v", err)
+		return
+	}
+
+	errChan <- nil
 }
 
 /// Things to remember 
